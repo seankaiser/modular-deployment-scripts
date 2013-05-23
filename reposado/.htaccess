@@ -14,12 +14,12 @@ RewriteRule ^content/downloads/(.+) http://updates.subnet2.example.com/content/d
 # .sucatalog redirects based on client software version
 # https://github.com/wdas/reposado/blob/master/docs/URL_rewrites.txt
 RewriteCond %{HTTP_USER_AGENT} Darwin/8
-RewriteRule ^index(.*)\.sucatalog$ content/catalogs/index$1.sucatalog [R=302,L]
+RewriteRule ^index(.*)\.sucatalog$ /content/catalogs/index$1.sucatalog [R=302,L]
 RewriteCond %{HTTP_USER_AGENT} Darwin/9
-RewriteRule ^index(.*)\.sucatalog$ content/catalogs/others/index-leopard.merged-1$1.sucatalog [R=302,L]
+RewriteRule ^index(.*)\.sucatalog$ /content/catalogs/others/index-leopard.merged-1$1.sucatalog [R=302,L]
 RewriteCond %{HTTP_USER_AGENT} Darwin/10
-RewriteRule ^index(.*)\.sucatalog$ content/catalogs/others/index-leopard-snowleopard.merged-1$1.sucatalog [R=302,L]
+RewriteRule ^index(.*)\.sucatalog$ /content/catalogs/others/index-leopard-snowleopard.merged-1$1.sucatalog [R=302,L]
 RewriteCond %{HTTP_USER_AGENT} Darwin/11
-RewriteRule ^index(.*)\.sucatalog$ content/catalogs/others/index-lion-snowleopard-leopard.merged-1$1.sucatalog [R=302,L]
+RewriteRule ^index(.*)\.sucatalog$ /content/catalogs/others/index-lion-snowleopard-leopard.merged-1$1.sucatalog [R=302,L]
 RewriteCond %{HTTP_USER_AGENT} Darwin/12
 RewriteRule ^index(.*)\.sucatalog$ /content/catalogs/others/index-mountainlion-lion-snowleopard-leopard.merged-1$1.sucatalog [R=302,L]
