@@ -1,0 +1,138 @@
+#!/bin/sh
+
+##
+# build the munki and softwareupdate config files from the helpdesk
+#
+# This script uses the "puppet & munki options" custom field  and the asset
+# location field to build out the configuration files. It assumes that the
+# options in this field are for puppet if not prefixed with "munki_" or
+# for munki if they are. Ideally, you would have two fields for this.
+#
+# This script pulls data from a webhelpdesk mysql database via a custom gateway
+# that I've written. You'll need to have some mechanism to look this data up
+# depending on your configuration.
+##
+
+# start here
+logger "${0} - v2.0 ("`date`")"
+
+###
+# call munkiwebadmin's preflight script
+###
+/usr/local/munki/mwa.preflight
+
+### set some variables
+whdapiurl="http://helpdesk.example.com:8003/whd_helpers/getfield.php
+
+munkipref="/Library/Preferences/ManagedInstalls"
+swupdatepref="/Library/Preferences/com.apple.SoftwareUpdate"
+
+swupdateurl="http://updates.example.com"
+munkiurl="http://munki.example.com/munki/repo"
+
+# if the critical file contains YES, this preflight script will configure munki
+# the user until they let munki do whatever installation(s)/update(s) that  are
+# available
+critical="http://munki.example.com/munki/repo/critical"
+
+# define the hw_address
+hw_address=`/sbin/ifconfig en0 | /usr/bin/awk '/ether/ {gsub(":",""); print $2 }'`
+
+# get the location field value
+location=`/usr/bin/curl -s -G -d "mac_address=${hw_address}" -d "field=6" "${whdapiurl}" | tr ' ' '\0' | sed 's/^bldg_//g'`
+
+# get the puppet extra classes field values (the munki_* ones, at least)
+classes=`/usr/bin/curl -s -G -d "mac_address=${hw_address}" -d "field=9" "${whdapiurl}" | tr ';' ' '`
+
+# what's our location based on ip address?
+if [ "`echo ${ip_address} | cut -d. -f1-2`" == "10.11" ]; then		# on our network?
+  oct3=`echo ${ip_address} | cut -d. -f3`
+  case ${oct3} in
+    0) pkgurl="localmunkirepo1.example.com" ;;
+    1) pkgurl="localmunkirepo1.example.com" ;;
+    2) pkgurl="localmunkirepo1.example.com" ;;
+    3) pkgurl="localmunkirepo1.example.com" ;;
+    4) pkgurl="localmunkirepo1.example.com" ;;
+    5) pkgurl="localmunkirepo1.example.com" ;;
+    6) pkgurl="localmunkirepo1.example.com" ;;
+    7) pkgurl="localmunkirepo1.example.com" ;;
+    8) pkgurl="localmunkirepo2.example.com" ;;
+    9) pkgurl="localmunkirepo2.example.com" ;;
+    10) pkgurl="localmunkirepo2.example.com" ;;
+    11) pkgurl="localmunkirepo2.example.com" ;;
+    12) pkgurl="localmunkirepo2.example.com" ;;
+    13) pkgurl="localmunkirepo2.example.com" ;;
+    14) pkgurl="localmunkirepo2.example.com" ;;
+    15) pkgurl="localmunkirepo2.example.com" ;;
+    # and so forth...
+
+    *) pkgurl="munki.example.com" ;;
+  esac
+fi
+
+# parse classes for major role and test role
+for class in ${classes}; do
+  if [[ `echo ${class} | grep "^munki_" | wc -l` -gt 0 ]]; then
+    role=`echo ${class} | cut -d'_' -f2`
+    if [ "${role}" == "test" ]; then
+      swupdatecatalogurl="${swupdateurl}/index_test.sucatalog"
+    else
+      munkirole="${munkirole}_${role}"
+    fi
+  fi
+done
+
+if [ "x${munkirole}" != "x" ]; then
+  munkirole="${location}${munkirole}"
+fi
+
+if [ "x${swupdatecatalogurl}" != "x" ]; then
+  munkirole="${munkirole}_test"
+else
+  swupdatecatalogurl="${swupdateurl}/index_production.sucatalog"
+fi
+
+# show some information in system.log for troubleshooting later on
+logger "hw_address:         '${hw_address}'"
+logger "location:           '${location}'"
+logger "classes:            '${classes}'"
+logger "munkirole:          '${munkirole}'"
+logger "swupdatecatalogurl: '${swupdatecatalogurl}'"
+logger "pkgurl:             '${pkgurl}'"
+logger "ip address:         '${ip_address}'"
+logger "oct3:               '${oct3}'"
+
+if [ "x${swupdatecatalogurl}" != "x" ]; then			# should never be 'x' as if not a tester it's production
+  /usr/bin/defaults write "${swupdatepref}" CatalogURL "${swupdatecatalogurl}"
+  /usr/bin/defaults write "${swupdatepref}" ScheduleFrequency -int -1
+  result=$?
+  logger "configured software update's catalog url as ${swupdatecatalogurl}, result=${result}"
+fi
+
+if [ "x${munkirole}" != "x" ]; then
+  /usr/bin/defaults write "${munkipref}" InstallAppleSoftwareUpdates -bool false
+  /usr/bin/defaults write "${munkipref}" SoftwareRepoURL "${munkiurl}"
+  if [ "x${pkgurl}" != "x" ]; then
+    /usr/bin/defaults write "${munkipref}" PackageURL "http://${pkgurl}/munki/repo/pkgs"
+  else
+    /usr/bin/defaults delete "${munkipref}" PackageURL
+  fi
+  /usr/bin/defaults write "${munkipref}" ClientIdentifier "${munkirole}"
+  if [ "x`curl ${critical}`" == "xYES" ]; then
+    logger "critical flag is set... changing preferences to bug user"
+    /usr/bin/defaults write "${munkipref}" SuppressUserNotification -bool false
+    /usr/bin/defaults write "${munkipref}" DaysBetweenNotifications 0
+    /usr/bin/defaults write "${munkipref}" SuppressStopButtonOnInstall -bool true
+  else
+    logger "critical flag is not set... changing preferences to nice mode"
+    /usr/bin/defaults write "${munkipref}" SuppressUserNotification -bool true
+    /usr/bin/defaults write "${munkipref}" DaysBetweenNotifications 1
+    /usr/bin/defaults write "${munkipref}" SuppressStopButtonOnInstall -bool false
+  fi
+  /usr/bin/defaults write "${munkipref}" SuppressAutoInstall -bool false
+  logger "configured munki to use ${munkiurl} and manifest ${munkirole}, pkgurl ${pkgurl}"
+fi
+
+exit 0
+
+

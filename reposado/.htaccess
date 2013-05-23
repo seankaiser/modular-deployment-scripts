@@ -1,0 +1,25 @@
+Options +FollowSymLinks
+RewriteEngine On
+
+# subnet 1 (10.11.0.0-10.11.7.255)
+RewriteCond %{REMOTE_ADDR} ^10\.11\.([0-7])\.([0-9]|[1-9][0-9]|1([0-9][0-9])|2([0-4][0-9]|5[0-5]))$
+RewriteRule ^content/downloads/(.+) http://updates.subnet1.example.com/content/downloads/$1 [R=302,L]
+
+# subnet 2 (10.11.8.0-10.11.15.255)
+RewriteCond %{REMOTE_ADDR} ^10\.11\.([8-9]|1[0-5])\.([0-9]|[1-9][0-9]|1([0-9][0-9])|2([0-4][0-9]|5[0-5]))$
+RewriteRule ^content/downloads/(.+) http://updates.subnet2.example.com/content/downloads/$1 [R=302,L]
+
+# and so on ...
+
+# .sucatalog redirects based on client software version
+# https://github.com/wdas/reposado/blob/master/docs/URL_rewrites.txt
+RewriteCond %{HTTP_USER_AGENT} Darwin/8
+RewriteRule ^index(.*)\.sucatalog$ content/catalogs/index$1.sucatalog [R=302,L]
+RewriteCond %{HTTP_USER_AGENT} Darwin/9
+RewriteRule ^index(.*)\.sucatalog$ content/catalogs/others/index-leopard.merged-1$1.sucatalog [R=302,L]
+RewriteCond %{HTTP_USER_AGENT} Darwin/10
+RewriteRule ^index(.*)\.sucatalog$ content/catalogs/others/index-leopard-snowleopard.merged-1$1.sucatalog [R=302,L]
+RewriteCond %{HTTP_USER_AGENT} Darwin/11
+RewriteRule ^index(.*)\.sucatalog$ content/catalogs/others/index-lion-snowleopard-leopard.merged-1$1.sucatalog [R=302,L]
+RewriteCond %{HTTP_USER_AGENT} Darwin/12
+RewriteRule ^index(.*)\.sucatalog$ /content/catalogs/others/index-mountainlion-lion-snowleopard-leopard.merged-1$1.sucatalog [R=302,L]

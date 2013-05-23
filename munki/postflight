@@ -1,0 +1,16 @@
+#!/bin/sh
+
+###
+# not much here, but allow for some other functionality like our preflight script
+###
+
+###
+# if there is other functionality, add it here so that munkiwebadmin's postflight script is last to run
+###
+
+###
+# call munki web admin's postflight script
+###
+/usr/local/munki/mwa.postflight
+
+exit 0
